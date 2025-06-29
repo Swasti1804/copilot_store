@@ -1,0 +1,6 @@
+id,itemId,itemName,supplier,quantity,estimatedCost,urgency,requestedBy,requestedDate,status,notes
+1,101,Artisan Bread,Local Bakery,25,174.75,critical,System Auto-Reorder,2024-01-15,pending,"Critical stock-out situation. Customer demand high."
+2,102,Sandwich Wraps,Fresh Foods Inc,40,359.60,high,Store Manager,2024-01-15,approved,"Popular lunch item, need immediate restocking."
+3,103,Organic Milk,Dairy Delights,30,210.00,medium,System Auto-Reorder,2024-01-16,pending,"Reorder due to recurring demand pattern."
+4,104,Gluten-Free Buns,HealthBakery Co.,20,145.00,low,Store Assistant,2024-01-16,delivered,"Delivered as per standard schedule."
+5,105,Cheddar ,Farm Fresh Dairy,35,280.00,high,Store Manager,2024-01-17,approved,"Reorder after last week’s shortage."
