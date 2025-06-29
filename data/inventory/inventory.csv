@@ -1,0 +1,4 @@
+id,Name,SKU,Category,Current Stock,Min Stock,Max Stock,Reorder Point,Reorder Quantity,Location,Status,Price,Supplier,Supplier Contact,Lead Time
+1,Laptop Pro,SKU123,Electronics,12,5,20,6,10,Warehouse A,in-stock,599.99,TechSupplier,supplier@example.com,3
+2,Smartphone X,SKU456,Electronics,0,5,30,10,15,Warehouse B,out-of-stock,299.99,PhoneCo,phone@example.com,4
+3,Office Chair,SKU789,Furniture,5,2,10,3,5,Store Room,in-stock,89.99,FurniMart,furni@example.com,2
