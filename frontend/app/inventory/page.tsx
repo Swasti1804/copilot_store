@@ -1,14 +1,13 @@
 "use client"
 
 import type React from "react"
+
 import { useState, useRef, useEffect } from "react"
 import { PageHeader } from "@/components/navigation/page-header"
 import { PageTransition } from "@/components/motion/page-transition"
 import { StaggerContainer } from "@/components/motion/stagger-container"
 import { AnimatedCard } from "@/components/motion/animated-card"
-import {
-  Card, CardContent, CardDescription, CardHeader, CardTitle
-} from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -17,18 +16,44 @@ import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog"
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useToast } from "@/hooks/use-toast"
 import {
-  Package, AlertTriangle, CheckCircle, ArrowRight, Search, Download, Upload, Truck, BarChart3, ShoppingCart,
-  Bell, FileText, Mail, Phone, RefreshCw, MoreHorizontal, AlertCircle, User,
+  Package,
+  AlertTriangle,
+  CheckCircle,
+  ArrowRight,
+  Search,
+  Download,
+  Upload,
+  Truck,
+  BarChart3,
+  ShoppingCart,
+  Bell,
+  FileText,
+  Mail,
+  Phone,
+  RefreshCw,
+  MoreHorizontal,
+  AlertCircle,
+  User,
 } from "lucide-react"
 
 interface InventoryItem {
@@ -42,13 +67,13 @@ interface InventoryItem {
   reorderPoint: number
   reorderQuantity: number
   location: string
-  lastUpdated?: string
+  lastUpdated: string
   status: "in-stock" | "low-stock" | "out-of-stock" | "overstocked" | "reorder-pending"
   price: number
   supplier: string
   supplierContact: string
   lastOrderDate?: string
-  leadTime: number
+  leadTime: number // days
   isSelected?: boolean
 }
 
@@ -77,6 +102,8 @@ interface ReorderRequest {
   status: "pending" | "approved" | "ordered" | "delivered"
   notes?: string
 }
+
+
 
 const mockTransfers: Transfer[] = [
   {
@@ -123,43 +150,8 @@ const mockReorders: ReorderRequest[] = [
 
 export default function InventoryPage() {
   const [inventory, setInventory] = useState<InventoryItem[]>([])
-
-  useEffect(() => {
-    const fetchInventory = async () => {
-      try {
-        const res = await fetch("http://localhost:8000/api/inventory/status")
-        const data = await res.json()
-
-        if (data.status === "success") {
-          const parsedInventory = data.inventory.map((item: any) => ({
-            id: item.id,
-            name: item.Name,
-            sku: item.SKU,
-            category: item.Category,
-            currentStock: parseInt(item["Current Stock"]),
-            minStock: parseInt(item["Min Stock"]),
-            maxStock: parseInt(item["Max Stock"]),
-            reorderPoint: parseInt(item["Reorder Point"] || "0"),
-            reorderQuantity: parseInt(item["Reorder Quantity"] || "0"),
-            location: item.Location,
-            status: item.Status,
-            price: parseFloat(item.Price),
-            supplier: item.Supplier,
-            supplierContact: item["Supplier Contact"] || "",
-            leadTime: parseInt(item["Lead Time"] || "0"),
-          }))
-          setInventory(parsedInventory)
-        }
-      } catch (error) {
-        console.error("Failed to fetch inventory:", error)
-      }
-    }
-
-    fetchInventory()
-  }, [])
-
   const [transfers, setTransfers] = useState<Transfer[]>(mockTransfers)
-  const [reorders, setReorders] = useState<ReorderRequest[]>(mockReorders)
+  const [reorders, setReorders] = useState<ReorderRequest[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("all")
   const [selectedItems, setSelectedItems] = useState<string[]>([])
@@ -167,6 +159,8 @@ export default function InventoryPage() {
   const [isReorderDialogOpen, setIsReorderDialogOpen] = useState(false)
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false)
   const [isNotificationDialogOpen, setIsNotificationDialogOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
+ const [error, setError] = useState<string | null>(null)
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null)
   const [transferForm, setTransferForm] = useState({
     toStore: "",
@@ -187,8 +181,51 @@ export default function InventoryPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
 
-  
+  useEffect(() => {
+    // Fetch inventory from backend API when component mounts
+    async function fetchInventory() {
+      try {
+           const response = await fetch("http://localhost:8000/api/inventory/status")
+        if (!response.ok) {
+          throw new Error(`Error fetching inventory: ${response.statusText}`)
+        }
+        const data = await response.json()
+        if (data.status === "success") {
+          setInventory(data.inventory)
+        } else {
+          toast({
+            title: "Failed to load inventory",
+            description: data.message || "Unknown error",
+            variant: "destructive",
+          })
+        }
+      } catch (error: any) {
+        toast({
+          title: "Error",
+          description: error.message || "Failed to fetch inventory",
+          variant: "destructive",
+        })
+      }
+    }
+     async function fetchReorders() {
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await fetch("http://localhost:8000/api/reorders/list")
+        if (!response.ok) throw new Error("Failed to fetch reorders")
+        const data = await response.json()
+        setReorders(data || [])
+      } catch (error) {
+        toast({ title: "Error", description: "Unable to load reorder data" })
+      }
+    }
 
+    fetchInventory()
+    fetchReorders()
+  }, [])
+
+  
+  
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -637,8 +674,8 @@ export default function InventoryPage() {
             </AnimatedCard>
           </div>
         </StaggerContainer>
-        
-          <Tabs defaultValue="inventory" className="space-y-6">
+
+        <Tabs defaultValue="inventory" className="space-y-6">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="inventory">Current Inventory</TabsTrigger>
             <TabsTrigger value="reorders">Reorder Management</TabsTrigger>

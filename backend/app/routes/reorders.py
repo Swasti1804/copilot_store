@@ -20,24 +20,30 @@ class Reorder(BaseModel):
     status: str
     notes: str
 
-@router.get("/api/reorders", response_model=List[Reorder])
+@router.get("/list", response_model=List[Reorder])
 def get_reorders():
-    filepath = os.path.join(settings.DATA_DIR, "reorders.csv")
+    filepath = os.path.join(settings.DATA_DIR, "reorders.csv")  # Corrected path
+    
     reorders = []
-    with open(filepath, newline="", encoding="utf-8") as file:
-        reader = csv.DictReader(file)
-        for row in reader:
-            reorders.append(Reorder(
-                id=row["id"],
-                itemId=row["itemId"],
-                itemName=row["itemName"],
-                supplier=row["supplier"],
-                quantity=int(row["quantity"]),
-                estimatedCost=float(row["estimatedCost"]),
-                urgency=row["urgency"],
-                requestedBy=row["requestedBy"],
-                requestedDate=row["requestedDate"],
-                status=row["status"],
-                notes=row["notes"]
-            ))
-    return reorders
+    try:
+        with open(filepath, newline="", encoding="utf-8") as file:
+            reader = csv.DictReader(file)
+            for row in reader:
+                reorders.append(Reorder(
+                    id=row["id"],
+                    itemId=row["itemId"],
+                    itemName=row["itemName"],
+                    supplier=row["supplier"],
+                    quantity=int(row["quantity"]),
+                    estimatedCost=float(row["estimatedCost"]),
+                    urgency=row["urgency"],
+                    requestedBy=row["requestedBy"],
+                    requestedDate=row["requestedDate"],
+                    status=row["status"],
+                    notes=row["notes"]
+                ))
+        return reorders
+    except FileNotFoundError:
+        return {"status": "error", "message": f"Reorders file not found at {filepath}"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}

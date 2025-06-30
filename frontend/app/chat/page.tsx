@@ -1,7 +1,5 @@
 "use client"
 
-import type React from "react"
-
 import { useState, useRef, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -90,7 +88,7 @@ export default function ChatPage() {
     setInputValue("")
     setIsLoading(true)
 
-    // Add loading message
+    // Loading skeleton
     const loadingMessage: Message = {
       id: messages.length + 2,
       type: "bot",
@@ -100,35 +98,34 @@ export default function ChatPage() {
     }
     setMessages((prev) => [...prev, loadingMessage])
 
-    // Simulate AI response
-    setTimeout(() => {
+    try {
+      const res = await fetch("http://localhost:8000/api/chatbot/query", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: userMessage.content }),
+      })
+
+      const data = await res.json()
+
       const botResponse: Message = {
         id: messages.length + 2,
         type: "bot",
-        content: generateBotResponse(inputValue),
+        content: data.answer || "Sorry, no response from the assistant.",
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       }
+
       setMessages((prev) => prev.slice(0, -1).concat(botResponse))
-      setIsLoading(false)
-    }, 2000)
-  }
-
-  const generateBotResponse = (question: string): string => {
-    const lowerQuestion = question.toLowerCase()
-
-    if (lowerQuestion.includes("inventory")) {
-      return "📊 **Current Inventory Status:**\n\n• **Store #1**: Premium Coffee Beans - 45 units (⚠️ Low stock)\n• **Store #3**: Milk - 15 gallons (🚨 Critical)\n• **Store #4**: Disposable Cups - 80 units (⚠️ Low stock)\n\n**Recommendations:**\n✅ Execute suggested transfers to optimize stock levels\n✅ Set up automated reorder points\n✅ Consider bulk purchasing for high-demand items"
-    } else if (lowerQuestion.includes("driver") || lowerQuestion.includes("safety")) {
-      return "🚗 **Driver Safety Overview:**\n\n**High-Risk Drivers:**\n• Tom Wilson (VAN-003) - 72% safety score\n  - Recent: Speeding violation today\n  - Action: Immediate coaching required\n\n**Medium-Risk Drivers:**\n• Sarah Davis - 88% safety score\n• David Miller - 78% safety score\n\n**Recommendations:**\n✅ Schedule safety training for Tom Wilson\n✅ Review driving patterns for medium-risk drivers\n✅ Implement real-time coaching alerts"
-    } else if (lowerQuestion.includes("sentiment")) {
-      return "📈 **Brand Sentiment Analysis:**\n\n**Overall Score: 8.2/10** ⭐\n\n**Positive Highlights:**\n• Seasonal menu receiving great reviews\n• Loyalty program highly appreciated\n• Customer service praised\n\n**Areas for Attention:**\n• Wait times at new location mentioned\n• Some delivery delays reported\n\n**Trending Topics:**\n#PumpkinSpiceLatte #LoyaltyProgram #FastService"
-    } else if (lowerQuestion.includes("weather")) {
-      return "🌤️ **Weather Impact Report:**\n\n**Active Alerts:**\n• Downtown area: Rain expected (15-20 min delays)\n• Suburban routes: Clear conditions\n\n**Delivery Adjustments:**\n✅ Routes automatically optimized\n✅ Customers notified of potential delays\n✅ Extra drivers on standby\n\n**Recommendations:**\n• Monitor conditions for next 2 hours\n• Consider indoor delivery alternatives"
-    } else if (lowerQuestion.includes("performance") || lowerQuestion.includes("store")) {
-      return "🏆 **Top Performing Stores Today:**\n\n**1. Store #1 Downtown** 🥇\n• Revenue: $12,450 (+15% vs target)\n• Transactions: 342\n• Avg. Order: $36.40\n\n**2. Store #5 Mall** 🥈\n• Revenue: $9,870\n• High foot traffic area\n\n**3. Store #3 Suburb** 🥉\n• Revenue: $8,320\n• Consistent performance\n\n**Key Success Factors:**\n✅ Efficient operations\n✅ Strategic locations\n✅ Strong customer service"
-    } else {
-      return "🤖 I can help you with:\n\n📦 **Inventory Management**\n• Stock levels and alerts\n• Transfer recommendations\n• Demand forecasting\n\n🚗 **Driver Safety**\n• Risk assessments\n• Safety scores\n• Incident tracking\n\n📊 **Analytics & Insights**\n• Performance metrics\n• Sentiment analysis\n• Weather impacts\n\nWhat specific information would you like to explore?"
+    } catch (error) {
+      const errorResponse: Message = {
+        id: messages.length + 2,
+        type: "bot",
+        content: "❌ Failed to connect to the assistant.",
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      }
+      setMessages((prev) => prev.slice(0, -1).concat(errorResponse))
     }
+
+    setIsLoading(false)
   }
 
   const handleSuggestedQuestion = (question: string) => {
@@ -145,7 +142,6 @@ export default function ChatPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header with Back Navigation */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
           <Link href="/dashboard">
@@ -166,7 +162,6 @@ export default function ChatPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-4">
-        {/* Chat Interface */}
         <div className="lg:col-span-3">
           <Card className="h-[600px] md:h-[700px] flex flex-col shadow-lg border-0 bg-card/50 backdrop-blur">
             <CardHeader className="border-b bg-muted/30">
@@ -266,9 +261,8 @@ export default function ChatPage() {
           </Card>
         </div>
 
-        {/* Sidebar */}
+        {/* Sidebar with Suggestions and Stats */}
         <div className="lg:col-span-1 space-y-6">
-          {/* Suggested Questions */}
           <Card className="shadow-lg border-0 bg-card/50 backdrop-blur">
             <CardHeader className="pb-4">
               <CardTitle className="flex items-center gap-2 text-lg">
@@ -298,7 +292,6 @@ export default function ChatPage() {
             </CardContent>
           </Card>
 
-          {/* Quick Stats */}
           <Card className="shadow-lg border-0 bg-card/50 backdrop-blur">
             <CardHeader className="pb-4">
               <CardTitle className="text-lg">Quick Stats</CardTitle>
@@ -327,7 +320,6 @@ export default function ChatPage() {
             </CardContent>
           </Card>
 
-          {/* Help Section */}
           <Card className="shadow-lg border-0 bg-gradient-to-br from-primary/5 to-primary/10">
             <CardContent className="p-4 text-center">
               <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-3">
