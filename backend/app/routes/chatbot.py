@@ -1,13 +1,5 @@
 from fastapi import APIRouter, Request
-import google.generativeai as genai
-from dotenv import load_dotenv
-import os
-
-# Load .env
-load_dotenv()
-
-# Configure Google Gemini
-genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+from app.services.csv_qa import answer_from_csv
 
 router = APIRouter()
 
@@ -17,18 +9,14 @@ async def ask_bot(request: Request):
     question = data.get("question", "")
 
     try:
-        # Use Gemini model
-        model = genai.GenerativeModel("models/gemini-pro")
-        response = model.generate_content(question)
-
+        answer = answer_from_csv(question)
         return {
             "question": question,
-            "answer": response.text
+            "answer": answer
         }
-
     except Exception as e:
         return {
             "question": question,
-            "answer": "❌ Gemini API failed.",
+            "answer": "❌ CSV-based response failed.",
             "error": str(e)
         }
