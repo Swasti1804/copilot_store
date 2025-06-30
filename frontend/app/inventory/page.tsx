@@ -3,6 +3,10 @@
 import type React from "react"
 
 import { useState, useRef, useEffect } from "react"
+import VoiceAssistant from "@/components/VoiceAssistant"  // adjust path if needed
+import { toast } from "@/components/ui/use-toast"
+
+
 import { PageHeader } from "@/components/navigation/page-header"
 import { PageTransition } from "@/components/motion/page-transition"
 import { StaggerContainer } from "@/components/motion/stagger-container"
@@ -12,6 +16,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
+
+
+
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
@@ -180,6 +187,40 @@ export default function InventoryPage() {
   })
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
+ const handleVoiceCommand = (cmd: string) => {
+  const command = cmd.toLowerCase()
+  console.log("🎤 Voice Command:", command)
+
+  if (command.includes("import")) {
+    setIsImportDialogOpen(true)
+  } else if (command.includes("notify") || command.includes("alert")) {
+    setIsNotificationDialogOpen(true)
+  } else if (command.includes("reorder")) {
+    const itemToReorder = inventory.find((item) => item.status === "out-of-stock")
+    if (itemToReorder) {
+      handleAutoReorder(itemToReorder)
+    }
+    toast({
+      title: "Voice Command Triggered",
+      description: "Auto reorder initiated for out-of-stock items.",
+    })
+  } else if (command.includes("stock status")) {
+    toast({
+      title: "Stock Overview",
+      description: `${outOfStockItems.length} out of stock, ${lowStockItems.length} low stock items.`,
+    })
+  } else if (command.includes("total value")) {
+    toast({
+      title: "Inventory Value",
+      description: `Total inventory value: $${totalValue.toLocaleString()}`,
+    })
+  } else {
+    toast({
+      title: "Unrecognized Command",
+      description: `I couldn't understand "${cmd}". Try saying "import", "reorder", or "stock status".`,
+    })
+  }
+}
 
   useEffect(() => {
     // Fetch inventory from backend API when component mounts
@@ -556,6 +597,7 @@ export default function InventoryPage() {
         <PageHeader
           title="Inventory Management"
           description="Monitor stock levels, manage transfers, and optimize inventory across all locations"
+            
         />
 
         {/* Out of Stock Alert Banner */}
@@ -1378,6 +1420,15 @@ export default function InventoryPage() {
           </DialogContent>
         </Dialog>
       </div>
+      <VoiceAssistant
+  onCommand={(command) => {
+    // custom logic to respond to voice input
+    console.log("User said:", command)
+    // you can trigger search, reorder, filter etc here
+  }}
+/>
+
+
     </PageTransition>
   )
 }

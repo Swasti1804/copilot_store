@@ -24,12 +24,15 @@ class Driver(BaseModel):
     riskLevel: str
     avatar: str = ""
 
-# ✅ CSV path
-CSV_FILE = os.path.join(os.path.dirname(__file__), "../data/drivers.csv")
+# ✅ Correct CSV path (absolute)
+CSV_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../data/driver/drivers.csv"))
+print("📂 Using drivers.csv path:", CSV_FILE)
 
 # ✅ Read CSV utility
 def read_drivers_from_csv() -> List[Driver]:
     drivers = []
+    if not os.path.exists(CSV_FILE):
+        raise HTTPException(status_code=500, detail="Driver CSV file not found")
     with open(CSV_FILE, mode="r", encoding="utf-8") as file:
         reader = csv.DictReader(file)
         for row in reader:
@@ -54,10 +57,7 @@ def read_drivers_from_csv() -> List[Driver]:
             )
     return drivers
 
-# ✅ GET: /api/drivers
+# ✅ API endpoint
 @router.get("/", response_model=List[Driver])
 def get_all_drivers():
-    try:
-        return read_drivers_from_csv()
-    except FileNotFoundError:
-        raise HTTPException(status_code=500, detail="drivers.csv file not found")
+    return read_drivers_from_csv()

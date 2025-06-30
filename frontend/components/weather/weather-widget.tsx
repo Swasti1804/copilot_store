@@ -63,8 +63,8 @@ const weatherIcons = {
 }
 
 export function WeatherWidget() {
-  const [city, setCity] = useState("Delhi")
-  const [inputCity, setInputCity] = useState("Delhi")
+  const [city, setCity] = useState([[]])
+  const [inputCity, setInputCity] = useState([])
   const [weather, setWeather] = useState<WeatherData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)

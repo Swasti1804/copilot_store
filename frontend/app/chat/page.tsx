@@ -9,6 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { MessageSquare, Send, Bot, User, Lightbulb, ArrowLeft, Sparkles, Clock } from "lucide-react"
 import Link from "next/link"
+import SpeechRecognition, { useSpeechRecognition } from "react-speech-recognition"
 
 interface Message {
   id: number
@@ -19,31 +20,11 @@ interface Message {
 }
 
 const suggestedQuestions = [
-  {
-    question: "What's the current inventory status across all stores?",
-    category: "Inventory",
-    icon: "📦",
-  },
-  {
-    question: "Which drivers have the highest risk scores today?",
-    category: "Safety",
-    icon: "🚗",
-  },
-  {
-    question: "Show me the sentiment analysis for this week",
-    category: "Analytics",
-    icon: "📊",
-  },
-  {
-    question: "What are the top performing stores?",
-    category: "Performance",
-    icon: "🏆",
-  },
-  {
-    question: "Any weather alerts affecting deliveries?",
-    category: "Weather",
-    icon: "🌤️",
-  },
+  { question: "What's the current inventory status across all stores?", category: "Inventory", icon: "📦" },
+  { question: "Which drivers have the highest risk scores today?", category: "Safety", icon: "🚗" },
+  { question: "Show me the sentiment analysis for this week", category: "Analytics", icon: "📊" },
+  { question: "What are the top performing stores?", category: "Performance", icon: "🏆" },
+  { question: "Any weather alerts affecting deliveries?", category: "Weather", icon: "🌤️" },
 ]
 
 const quickStats = [
@@ -51,6 +32,49 @@ const quickStats = [
   { label: "Total Inventory", value: "12,847", trend: "+5%" },
   { label: "Active Drivers", value: "24", trend: "-1" },
   { label: "Sentiment Score", value: "8.2/10", trend: "+0.3" },
+]
+
+const driverData = [
+  {
+    name: "John Smith",
+    status: "active",
+    vehicle: "Truck #001",
+    score: 92,
+    risk: "low risk",
+    deliveries: 156,
+    incidents: 1,
+    lastActive: "5 minutes ago",
+  },
+  {
+    name: "Sarah Johnson",
+    status: "active",
+    vehicle: "Van #003",
+    score: 88,
+    risk: "low risk",
+    deliveries: 203,
+    incidents: 2,
+    lastActive: "12 minutes ago",
+  },
+  {
+    name: "Mike Davis",
+    status: "on break",
+    vehicle: "Truck #002",
+    score: 76,
+    risk: "medium risk",
+    deliveries: 89,
+    incidents: 4,
+    lastActive: "2 hours ago",
+  },
+  {
+    name: "Lisa Chen",
+    status: "inactive",
+    vehicle: "Van #001",
+    score: 65,
+    risk: "high risk",
+    deliveries: 45,
+    incidents: 6,
+    lastActive: "1 day ago",
+  },
 ]
 
 export default function ChatPage() {
@@ -68,19 +92,35 @@ export default function ChatPage() {
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
+  const {
+    transcript,
+    listening,
+    resetTranscript,
+    browserSupportsSpeechRecognition,
+  } = useSpeechRecognition()
+
   useEffect(() => {
     if (scrollAreaRef.current) {
       scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight
     }
   }, [messages])
 
-  const handleSendMessage = async () => {
-    if (!inputValue.trim() || isLoading) return
+  useEffect(() => {
+    if (!listening && transcript.trim()) {
+      setInputValue(transcript.trim())
+      handleSendMessage(transcript.trim())
+      resetTranscript()
+    }
+  }, [listening])
+
+  const handleSendMessage = async (value?: string) => {
+    const messageToSend = value || inputValue
+    if (!messageToSend.trim() || isLoading) return
 
     const userMessage: Message = {
       id: messages.length + 1,
       type: "user",
-      content: inputValue,
+      content: messageToSend,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     }
 
@@ -88,7 +128,6 @@ export default function ChatPage() {
     setInputValue("")
     setIsLoading(true)
 
-    // Loading skeleton
     const loadingMessage: Message = {
       id: messages.length + 2,
       type: "bot",
@@ -98,11 +137,55 @@ export default function ChatPage() {
     }
     setMessages((prev) => [...prev, loadingMessage])
 
+    const lowerMsg = messageToSend.toLowerCase()
+
+    // 💡 Custom driver query handler
+    const handleDriverQuery = (): string | null => {
+      if (lowerMsg.includes("high risk")) {
+        const highRiskDrivers = driverData.filter((d) => d.risk === "high risk")
+        return highRiskDrivers.length
+          ? `⚠️ High Risk Driver: ${highRiskDrivers[0].name} (${highRiskDrivers[0].vehicle}) — Safety Score: ${highRiskDrivers[0].score}, Incidents: ${highRiskDrivers[0].incidents}`
+          : "No high-risk drivers found."
+      }
+      if (lowerMsg.includes("best driver") || lowerMsg.includes("top driver")) {
+        const best = [...driverData].sort((a, b) => b.score - a.score)[0]
+        return `🏅 Best Driver: ${best.name} — Safety Score: ${best.score}, Deliveries: ${best.deliveries}, Vehicle: ${best.vehicle}`
+      }
+      if (lowerMsg.includes("driver status")) {
+        return driverData
+          .map((d) => `${d.name}: ${d.status} (${d.lastActive})`)
+          .join("\n")
+      }
+      if (lowerMsg.includes("most deliveries")) {
+        const most = [...driverData].sort((a, b) => b.deliveries - a.deliveries)[0]
+        return `🚚 Most Deliveries: ${most.name} — ${most.deliveries} deliveries`
+      }
+      return null
+    }
+
+    const driverAnswer = handleDriverQuery()
+
+    if (driverAnswer) {
+      const botResponse: Message = {
+        id: messages.length + 2,
+        type: "bot",
+        content: driverAnswer,
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      }
+
+      setMessages((prev) => prev.slice(0, -1).concat(botResponse))
+      const utterance = new SpeechSynthesisUtterance(botResponse.content)
+      speechSynthesis.speak(utterance)
+      setIsLoading(false)
+      return
+    }
+
+    // 🌐 Otherwise call backend
     try {
       const res = await fetch("http://localhost:8000/api/chatbot/query", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: userMessage.content }),
+        body: JSON.stringify({ question: messageToSend }),
       })
 
       const data = await res.json()
@@ -115,6 +198,8 @@ export default function ChatPage() {
       }
 
       setMessages((prev) => prev.slice(0, -1).concat(botResponse))
+      const utterance = new SpeechSynthesisUtterance(botResponse.content)
+      speechSynthesis.speak(utterance)
     } catch (error) {
       const errorResponse: Message = {
         id: messages.length + 2,
@@ -140,8 +225,10 @@ export default function ChatPage() {
     }
   }
 
+  
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
           <Link href="/dashboard">
@@ -162,6 +249,7 @@ export default function ChatPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-4">
+        {/* Chat UI */}
         <div className="lg:col-span-3">
           <Card className="h-[600px] md:h-[700px] flex flex-col shadow-lg border-0 bg-card/50 backdrop-blur">
             <CardHeader className="border-b bg-muted/30">
@@ -233,7 +321,21 @@ export default function ChatPage() {
               </ScrollArea>
 
               <div className="border-t p-4 bg-muted/30">
-                <div className="flex space-x-2">
+                {!browserSupportsSpeechRecognition && (
+                  <div className="text-red-500 text-sm mb-2">Voice not supported in this browser.</div>
+                )}
+                <div className="flex space-x-2 items-center">
+                  <Button
+                    onClick={() => {
+                      resetTranscript()
+                      SpeechRecognition.startListening({ continuous: false })
+                    }}
+                    disabled={listening}
+                    className="px-3"
+                    aria-label="Voice input"
+                  >
+                    🎤
+                  </Button>
                   <Input
                     ref={inputRef}
                     placeholder="Ask me anything about your operations..."
@@ -245,7 +347,7 @@ export default function ChatPage() {
                     aria-label="Chat message input"
                   />
                   <Button
-                    onClick={handleSendMessage}
+                    onClick={() => handleSendMessage()}
                     disabled={isLoading || !inputValue.trim()}
                     className="px-4"
                     aria-label="Send message"
@@ -261,8 +363,9 @@ export default function ChatPage() {
           </Card>
         </div>
 
-        {/* Sidebar with Suggestions and Stats */}
+        {/* Sidebar */}
         <div className="lg:col-span-1 space-y-6">
+          {/* Quick Questions */}
           <Card className="shadow-lg border-0 bg-card/50 backdrop-blur">
             <CardHeader className="pb-4">
               <CardTitle className="flex items-center gap-2 text-lg">
@@ -292,6 +395,7 @@ export default function ChatPage() {
             </CardContent>
           </Card>
 
+          {/* Stats */}
           <Card className="shadow-lg border-0 bg-card/50 backdrop-blur">
             <CardHeader className="pb-4">
               <CardTitle className="text-lg">Quick Stats</CardTitle>
@@ -319,23 +423,8 @@ export default function ChatPage() {
               ))}
             </CardContent>
           </Card>
-
-          <Card className="shadow-lg border-0 bg-gradient-to-br from-primary/5 to-primary/10">
-            <CardContent className="p-4 text-center">
-              <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-3">
-                <MessageSquare className="h-6 w-6 text-primary" />
-              </div>
-              <h3 className="font-semibold mb-2">Need Help?</h3>
-              <p className="text-sm text-muted-foreground mb-3">
-                I can analyze your data and provide actionable insights for better operations.
-              </p>
-              <Button variant="outline" size="sm" asChild>
-                <Link href="/help">View Documentation</Link>
-              </Button>
-            </CardContent>
-          </Card>
         </div>
       </div>
     </div>
   )
-}
+}  
